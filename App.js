@@ -9,6 +9,14 @@ import {
   StatusBar,
 } from "react-native";
 import { Icon, Slider } from "react-native-elements";
+import {
+  LineChart,
+  BarChart,
+  PieChart,
+  ProgressChart,
+  ContributionGraph,
+  StackedBarChart,
+} from "react-native-chart-kit";
 
 // Function to calculate the payment for a loan
 function calculatePayment(ir, np, pv) {
@@ -19,9 +27,10 @@ function calculatePayment(ir, np, pv) {
 // Main component
 export default function MortgageCalculator() {
   const [value, setValue] = useState(0);
+  const [monthlyPercentage, setMonthlyPercentage] = useState(0);
   // State variables
   const [houseCost, setHouseCost] = useState(100000);
-  const [downPayment, setDownPayment] = useState(0);
+  const [downPayment, setDownPayment] = useState(10000);
   const [renovations, setRenovations] = useState(0);
   const [monthlyRentalIncome, setMonthlyRentalIncome] = useState(0);
   const [monthlyPayments, setMonthlyPayments] = useState(0);
@@ -36,11 +45,21 @@ export default function MortgageCalculator() {
   const [propertyTaxRate, setPropertyTaxRate] = useState(1.505611);
   const [yearlyPropertyTax, setYearlyPropertyTax] = useState(0);
   const [monthlyPropertyTax, setMonthlyPropertyTax] = useState(0);
+  const [affordability, setAffordability] = useState({});
+  const [budget, setBudget] = useState(3000);
 
   // useEffect for calculating payments
   useEffect(() => {
     calculatePayments();
-  }, [loanAmount, monthlyRentalIncome, houseCost, downPayment, renovations]);
+  }, [
+    budget,
+    loanAmount,
+    monthlyRentalIncome,
+    houseCost,
+    downPayment,
+    monthlyPayments,
+    renovations,
+  ]);
 
   // Function to calculate payments
   const calculatePayments = () => {
@@ -58,7 +77,31 @@ export default function MortgageCalculator() {
     setInterestCost(periodPayment * totalNumberOfPayments - loanAmount);
     setYearlyPropertyTax(yrPropTax);
     setMonthlyPropertyTax(yrPropTax / 12);
-    setMonthlyPayments(periodPayment - monthlyRentalIncome + yrPropTax / 12);
+    const monthlyPayments =
+      periodPayment - monthlyRentalIncome + yrPropTax / 12;
+    setMonthlyPayments(monthlyPayments);
+
+    const monthlyPercentage =
+      1 - Math.min(1, Math.max(0, monthlyPayments / budget));
+
+    const affordability = {};
+    affordability.percentage = monthlyPercentage;
+    if (affordability.percentage === 1) {
+      affordability.color = "26, 255, 146, "; //green
+      affordability.text = "Profitable";
+    } else if (affordability.percentage >= 0.5) {
+      affordability.color = "105,233,245, "; //blue
+      affordability.text = "Affordable";
+    } else if (affordability.percentage > 0) {
+      affordability.color = "255, 255, 0,"; //yellow
+      affordability.text = "Affordable";
+    } else {
+      affordability.color = "255, 0, 0,"; //Red
+      affordability.text = "Not Affordable";
+    }
+
+    setMonthlyPercentage(monthlyPercentage);
+    setAffordability(affordability);
   };
 
   // Function to handle numeric input
@@ -76,90 +119,136 @@ export default function MortgageCalculator() {
       <ScrollView>
         <StatusBar barStyle="light-content" />
         <View style={styles.content}>
-          <Text style={styles.title}>Ontario Housing Calculator</Text>
-          {/* New Tile */}
-          <View style={styles.tile}>
-            <Text style={styles.tileText}>House Cost</Text>
-            <View style={{ flexDirection: "row" }}>
-              <View style={[styles.circle, { backgroundColor: "#69E9F5" }]}>
-                <Icon name="home" size={30} color="#FFF" />
-              </View>
-              <Slider
-                value={houseCost}
-                onValueChange={setHouseCost}
-                minimumValue={100000}
-                maximumValue={1000000}
-                step={10000}
-                style={{ flex: 1 }}
-                thumbStyle={{
-                  width: 20,
-                  height: 20,
-                  backgroundColor: "#69E9F5",
+          <View style={{ position: "relative" }}>
+            <ProgressChart
+              data={{
+                labels: ["Progress"],
+                data: [monthlyPercentage],
+              }}
+              width={380}
+              height={380}
+              strokeWidth={20}
+              strokeOpacity={1}
+              radius={120}
+              chartConfig={{
+                backgroundGradientFrom: "#080f23",
+                backgroundGradientTo: "#080f23",
+                color: (opacity = 1) =>
+                  `rgba(${affordability.color} ${opacity})`,
+                strokeWidth: 3, // optional, default 3
+              }}
+              hideLegend={true}
+            />
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  justifyContent: "center",
+                  alignItems: "center",
+                  width: 220,
+                  height: 220,
+                  backgroundColor: "red",
+                  borderRadius: 110,
                 }}
-                minimumTrackTintColor="#69E9F5" // Color before the thumb
-                maximumTrackTintColor="#080F23" // Color after the thumb
-              />
+              >
+                <View
+                  style={{
+                    justifyContent: "center",
+                    alignItems: "center",
+                    width: 200,
+                    height: 200,
+                    backgroundColor: "purple",
+                    borderRadius: 110,
+                  }}
+                >
+                  <Text
+                    style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}
+                  >
+                    ${monthlyPayments.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
 
-          <View style={styles.tile}>
-            <View style={[styles.circle, { backgroundColor: "#55BDC6" }]}>
-              <Icon name="money" size={30} color="#FFF" />
-            </View>
-            <Text style={styles.tileText}>Down Payment</Text>
-          </View>
-
-          <View style={styles.tile}>
-            <View style={[styles.circle, { backgroundColor: "#DEA662" }]}>
-              <Icon
-                name="hammer"
-                type="font-awesome-5"
-                size={25}
-                color="#FFF"
-              />
-            </View>
-            <Text style={styles.tileText}>Renovation Cost</Text>
-          </View>
-
-          <View style={styles.tile}>
-            <View style={[styles.circle, { backgroundColor: "#FFC37A" }]}>
-              <Icon
-                name="user-friends"
-                type="font-awesome-5"
-                size={25}
-                color="#FFF"
-              />
-            </View>
-            <Text style={styles.tileText}>Monthly Rental Income</Text>
-          </View>
-
-          {/* Input fields */}
-          <InputField
+          <Text
+            style={{
+              textAlign: "center",
+              color: "#fff",
+              fontSize: 20,
+              fontWeight: "bold",
+            }}
+          >
+            {affordability.text}
+          </Text>
+          <ControlTile
             label="House Cost"
             value={houseCost}
-            onChange={(text) => handleNumericInput(text, setHouseCost)}
+            onChange={setHouseCost}
+            color="#FBBA6E"
+            icon="home"
+            min={100000}
+            max={1000000}
+            step={10000}
           />
-          <InputField
+          <ControlTile
             label="Down Payment"
             value={downPayment}
-            onChange={(text) => handleNumericInput(text, setDownPayment)}
+            onChange={setDownPayment}
+            color="#69E9F5"
+            icon="dollar-sign"
+            min={10000}
+            max={200000}
+            step={5000}
           />
-          <InputField
-            label="Renovations Required"
+          <ControlTile
+            label="Renovations"
             value={renovations}
-            onChange={(text) => handleNumericInput(text, setRenovations)}
+            onChange={setRenovations}
+            color="#FBBA6E"
+            icon="paint-roller"
+            min={0}
+            max={20000}
+            step={500}
           />
-          <InputField
+          <ControlTile
             label="Monthly Rental Income"
             value={monthlyRentalIncome}
-            onChange={(text) =>
-              handleNumericInput(text, setMonthlyRentalIncome)
-            }
+            onChange={setMonthlyRentalIncome}
+            color="#69E9F5"
+            icon="users"
+            min={0}
+            max={3000}
+            step={100}
           />
+          <ControlTile
+            label="Monthly Budget"
+            value={budget}
+            onChange={setBudget}
+            color="#68F48B"
+            icon="receipt"
+            min={1000}
+            max={7000}
+            step={100}
+          />
+
           {/* Display fields */}
           <DisplayField
             label="Monthly Payments"
             value={`$${monthlyPayments.toFixed(2)}`}
+          />
+          <DisplayField
+            label="Monthly Percentage"
+            value={`$${monthlyPercentage.toFixed(2)}`}
           />
           <Text style={styles.sectionTitle}>Mortgage</Text>
           <DisplayField
@@ -214,11 +303,11 @@ export default function MortgageCalculator() {
 }
 
 // Input field component
-const InputField = ({ label, value, onChange }) => (
+const InputField = ({ label, value, onChange, color }) => (
   <View style={styles.rowWrap}>
-    <Text style={styles.label}>{label}</Text>
+    <Text style={[styles.tileText, { color: "#fff" }]}>{label}</Text>
     <TextInput
-      style={styles.input}
+      style={[styles.input, { color: color }]}
       value={value.toString()}
       onChangeText={onChange}
       placeholder={label}
@@ -232,6 +321,46 @@ const DisplayField = ({ label, value }) => (
   <View style={styles.rowWrap}>
     <Text style={styles.label}>{label}</Text>
     <Text style={styles.display}>{value}</Text>
+  </View>
+);
+
+const ControlTile = ({
+  label,
+  value,
+  onChange,
+  color,
+  icon,
+  min,
+  max,
+  step,
+}) => (
+  <View style={styles.tile}>
+    <InputField
+      label={label}
+      value={value}
+      onChange={(text) => handleNumericInput(text, onChange)}
+      color={color}
+    />
+    <View style={styles.tileRow}>
+      <View style={[styles.circle, { backgroundColor: color }]}>
+        <Icon name={icon} type="font-awesome-5" size={25} color="#FFF" />
+      </View>
+      <Slider
+        value={value}
+        onValueChange={onChange}
+        minimumValue={min}
+        maximumValue={max}
+        step={step}
+        style={{ flex: 1 }}
+        thumbStyle={{
+          width: 20,
+          height: 20,
+          backgroundColor: color,
+        }}
+        minimumTrackTintColor={color} // Color before the thumb
+        maximumTrackTintColor="#080F23" // Color after the thumb
+      />
+    </View>
   </View>
 );
 
@@ -251,6 +380,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     padding: 10,
     margin: 10,
+    paddingLeft: 40,
+    backgroundColor: "#0D233B",
+  },
+  tileRow: {
+    flexDirection: "row",
+    padding: 10,
+    paddingTop: 0,
+    marginTop: -40,
   },
   circle: {
     width: 40,
@@ -265,10 +402,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#080F23",
     justifyContent: "center",
     alignItems: "center",
+    width: "100%",
   },
   content: {
     flex: 1,
     padding: 5,
+    width: "100%",
   },
   rowWrap: {
     flexDirection: "row",
@@ -276,23 +415,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: {
-    fontSize: 24,
+    color: "#FFF",
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
+    padding: 10,
+    margin: 10,
+    paddingLeft: 50,
   },
   label: {
     fontSize: 18,
     color: "#666",
   },
   input: {
-    height: 40,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 5,
-    backgroundColor: "#fff",
-    width: 150,
+    backgroundColor: "#0D233B",
+    width: 100,
+    color: "#FFF",
+    textAlign: "right",
+    textAlignVertical: "bottom",
+    paddingRight: 10,
+    fontSize: 16,
+    fontWeight: "bold",
+    height: 60,
   },
   display: {
     fontSize: 18,
